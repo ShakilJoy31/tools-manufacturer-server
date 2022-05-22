@@ -28,6 +28,8 @@ async function run(){
 
         const updatedCollection = client.db('toolNeeded').collection('updateduser'); 
 
+        const userCollection = client.db('toolNeeded').collection('allUsers'); 
+
         // getting all data from db; 
         app.get('/tools', async (req, res)=>{
             const query = {}; 
@@ -86,7 +88,51 @@ async function run(){
             const updatedData = req.body; 
             const result = await updatedCollection.insertOne(updatedData);
             res.send(result); 
+        }); 
+
+        // Add all user
+        app.put('/adduser/:email', async (req, res)=>{
+            const email = req.params.email; 
+            const newUser = req.body; 
+            const filter = {email: email}; 
+            const option = {upsert: true}; 
+            const updateDoc = {
+                $set: {
+                    name: newUser?.userName, 
+                    email: newUser?.userEmail
+                }
+            }
+            const result = await userCollection.updateOne(filter, updateDoc, option);
+            res.send(result); 
+        }); 
+
+
+        // Get all the users for admin
+        app.get('/users', async (req, res)=>{
+            const result = await userCollection.find().toArray(); 
+            res.send(result); 
         })
+
+
+        // make a user as admin
+        app.put('/user/admin/:email', async (req, res)=>{
+            const email = req.params.email; 
+            const requester = req.body; 
+            const requesterEmail = await userCollection.findOne({email:requester?.requester}); 
+            if(requesterEmail.act === 'admin'){
+                console.log('got inter'); 
+                const filter = {email: email}; 
+                const updateDoc = {
+                    $set: {act: 'admin'}
+                }
+                const result = await userCollection.updateOne(filter, updateDoc); 
+                res.send(result); 
+            }
+            else{
+                res.send('Sorry, Only admin can make someone admin'); 
+            }
+        })
+
 
 
         // Updating the quantity
