@@ -127,10 +127,28 @@ async function run(){
                 }
                 const result = await userCollection.updateOne(filter, updateDoc); 
                 res.send(result); 
+                console.log(result); 
             }
             else{
                 res.send('Sorry, Only admin can make someone admin'); 
             }
+        }); 
+
+        // Checking a general user admin or not
+        app.get('/adminUser/:email', async (req, res) => {
+            const email = req.params.email; 
+            const query = {email: email}; 
+            const result = await userCollection.findOne(query); 
+            if(result.act === 'admin'){
+                res.send(result); 
+            }
+        }); 
+
+        // Add a product to database by user
+        app.post('/addproduct', async (req, res) =>{
+            const data = req.body; 
+            const result = await toolsCollection.insertOne(data); 
+            res.send(result) 
         })
 
 
