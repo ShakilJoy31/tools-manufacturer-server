@@ -5,6 +5,7 @@ const port = process.env.PORT || 5000;
 require('dotenv').config(); 
 app.use(cors());
 app.use(express.json());
+const stripe = require('stripe')(process.env.STRIPT_SECRET_KEY);
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -47,6 +48,13 @@ async function run(){
             res.send(result); 
         }); 
 
+        app.get('/toolForPayment/:id', async (req, res)=>{
+            const id = req.params.id; 
+            const query = {_id: ObjectId(id)}; 
+            const result = await infoCollection.findOne(query); 
+            res.send(result); 
+        }); 
+
 
         // Add user info and products info
 
@@ -80,6 +88,13 @@ async function run(){
             const result = await reviewCollection.insertOne(data); 
             res.send(result); 
         }); 
+
+
+        // Get the user review. 
+        app.get('/userReview', async (req, res) => {
+            const result = await reviewCollection.find().toArray(); 
+            res.send(result); 
+        })
 
 
         // Update profile and save to the database
@@ -127,7 +142,7 @@ async function run(){
                 }
                 const result = await userCollection.updateOne(filter, updateDoc); 
                 res.send(result); 
-                console.log(result); 
+                console.log(result);
             }
             else{
                 res.send('Sorry, Only admin can make someone admin'); 
@@ -149,26 +164,40 @@ async function run(){
             const data = req.body; 
             const result = await toolsCollection.insertOne(data); 
             res.send(result) 
-        })
+        }); 
+
+
+        // For payment
+        app.post('/create-payment-intent', async(req, res) =>{
+            const service = req.body;
+            const price = service.price;
+            const amount = price*100;
+            const paymentIntent = await stripe.paymentIntents.create({
+              amount : amount,
+              currency: 'usd',
+              payment_method_types:['card']
+            });
+            res.send({clientSecret: paymentIntent.client_secret})
+          });
 
 
 
         // Updating the quantity
-        // app.put('/product/:id', async (req, res)=>{
-        //     const id = req.params.id; 
-        //     console.log(id); 
-        //     const updatedProduct = req.body; 
-        //     const filter = {_id:ObjectId(id)}; 
-        //     const option = {upsert: true}; 
-        //     console.log(updatedProduct); 
-        //     const updateDoc = {
-        //         $set: {
-        //             availableQuantity : updatedProduct.updatedProduct 
-        //         }
-        //     }; 
-        //     const result = await toolsCollection.updateOne(filter, updateDoc, option); 
-        //     res.send(result); 
-        // }); 
+        app.put('/product/:id', async (req, res)=>{
+            const id = req.params.id; 
+            console.log(id); 
+            const updatedProduct = req.body; 
+            const filter = {_id:ObjectId(id)}; 
+            const option = {upsert: true}; 
+            console.log(updatedProduct); 
+            const updateDoc = {
+                $set: {
+                    availableQuantity : updatedProduct.updatedProduct 
+                }
+            }; 
+            const result = await toolsCollection.updateOne(filter, updateDoc, option); 
+            res.send(result); 
+        }); 
 
 
 
