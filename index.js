@@ -161,9 +161,9 @@ async function run(){
             const requester = req.body; 
             const requesterEmail = await userCollection.findOne({email:requester?.requester}); 
             console.log('email',email); 
-            console.log('decoded email',email); 
+            console.log('decoded email', decodedEmail); 
             console.log('requester',requesterEmail); 
-            if(email === decodedEmail){
+            if(decodedEmail){
                 if(requesterEmail.act === 'admin'){
                     console.log('got inter'); 
                     const filter = {email: email}; 
@@ -189,7 +189,7 @@ async function run(){
             const email = req.params.email; 
             const query = {email: email}; 
             const result = await userCollection.findOne(query); 
-            if(result?.act === 'admin'){
+            if(result?.act === 'admin'){ 
                 res.send(result); 
             }
         }); 
@@ -206,7 +206,8 @@ async function run(){
         app.post('/create-payment-intent', async(req, res) =>{
             const service = req?.body;
             console.log('service ',service); 
-            const price = parseInt(service.price);
+            const price = service.totalPrice;
+            console.log(price); 
             const amount = price*100;
             const paymentIntent = await stripe.paymentIntents.create({
               amount : amount,
@@ -235,9 +236,12 @@ async function run(){
 
 
         // Get all the product for admin
-        app.get('/allProductForAdmin', async (req, res) => {
-            const result = await infoCollection.find().toArray(); 
-            res.send(result); 
+        app.get('/allProductForAdmin', verifyJWT, async (req, res) => {
+            const decodedEmail = req.decoded.email; 
+            if(decodedEmail){
+                const result = await infoCollection.find().toArray(); 
+                res.send(result); 
+            }
         }); 
 
         // Delete a product by admin
@@ -245,6 +249,31 @@ async function run(){
             const id = req.params.id; 
             const filter = {id: ObjectId(id)}; 
             const result = await infoCollection.deleteOne(filter); 
+            res.send(result); 
+        }); 
+
+
+        // Get all product for users. 
+        app.get('/allAvailableProduct/:email', verifyJWT, async (req, res)=>{
+            const email = req.params.email;
+            const decodedEmail = req.decoded.email;  
+            console.log('email ',email); 
+            console.log('decoded ',decodedEmail); 
+            if(email === decodedEmail){
+                const result = await toolsCollection.find().toArray(); 
+                res.send(result); 
+            }
+            else{
+                return; 
+            }
+
+        }); 
+
+        // Delete a product by admin 
+        app.delete('/deletebyAdmin/:id', async (req, res)=>{
+            const id = req.params.id; 
+            const filter = {_id: ObjectId(id)}; 
+            const result = await toolsCollection.deleteOne(filter); 
             res.send(result); 
         })
 
