@@ -275,6 +275,21 @@ async function run(){
             const filter = {_id: ObjectId(id)}; 
             const result = await toolsCollection.deleteOne(filter); 
             res.send(result); 
+        }); 
+
+
+        // Payment 
+        app.put('/paid/:id', async (req, res)=>{
+            const id = req.params.id; 
+            const filter = {_id: ObjectId(id)}; 
+            const option = {upsert: true}; 
+            const updateDoc = {
+                $set: {
+                    paymentStatus: 'paid'
+                }
+            }
+            const result = await infoCollection.updateOne(filter, updateDoc, option); 
+            res.send(result); 
         })
 
 
