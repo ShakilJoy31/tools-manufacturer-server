@@ -5,6 +5,7 @@ const port = process.env.PORT || 5000;
 require('dotenv').config(); 
 app.use(cors());
 app.use(express.json());
+const jwt = require('jsonwebtoken');
 const stripe = require('stripe')(process.env.STRIPT_SECRET_KEY);
 
 
@@ -13,6 +14,23 @@ const { query } = require('express');
 
 const uri = `mongodb+srv://${process.env.USER}:${process.env.PASSWORD}@cluster0.1tedy.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
+
+function verifyJWT(req, res, next){
+    const authHeader = req.headers.authorization; 
+    if(!authHeader){
+        return res.status(401).send({message: 'UnAuthorized Access'}); 
+    }
+    else{
+        const token = authHeader.split(' ')[1]; 
+        jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (error, decoded){
+            if(error){
+                return res.status(403).send({message: 'Forbidden Access'})
+            }
+            req.decoded = decoded; 
+            next(); 
+        })
+    }
+}
 
 
 
@@ -65,11 +83,17 @@ async function run(){
         }); 
 
 
-        app.get('/getOrderedProducts/:email', async (req, res)=>{
-            const email = req.params.email; 
+        app.get('/getOrderedProducts/:email', verifyJWT, async (req, res)=>{
+            const email = req.params.email;
+            const decodedEmail = req.decoded.email; 
+            if(email === decodedEmail){
             const query = {email: email}; 
             const result = await infoCollection.find(query).toArray(); 
-            res.send(result); 
+            return res.send(result); 
+            }
+            else{
+                return res.status(403).send({message: 'Forbidden Access'}); 
+            }
         }); 
 
         // Delete product. 
@@ -118,7 +142,8 @@ async function run(){
                 }
             }
             const result = await userCollection.updateOne(filter, updateDoc, option);
-            res.send(result); 
+            const token = jwt.sign({email: email}, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1d'}); 
+            res.send({result, token}); 
         }); 
 
 
@@ -130,23 +155,33 @@ async function run(){
 
 
         // make a user as admin
-        app.put('/user/admin/:email', async (req, res)=>{
-            const email = req.params.email; 
+        app.put('/user/admin/:email', verifyJWT, async (req, res)=>{
+            const email = req.params.email;
+            const decodedEmail = req.decoded.email; 
             const requester = req.body; 
             const requesterEmail = await userCollection.findOne({email:requester?.requester}); 
-            if(requesterEmail.act === 'admin'){
-                console.log('got inter'); 
-                const filter = {email: email}; 
-                const updateDoc = {
-                    $set: {act: 'admin'}
+            console.log('email',email); 
+            console.log('decoded email',email); 
+            console.log('requester',requesterEmail); 
+            if(email === decodedEmail){
+                if(requesterEmail.act === 'admin'){
+                    console.log('got inter'); 
+                    const filter = {email: email}; 
+                    const updateDoc = {
+                        $set: {act: 'admin'}
+                    }
+                    const result = await userCollection.updateOne(filter, updateDoc); 
+                    res.send(result); 
+                    console.log(result);
                 }
-                const result = await userCollection.updateOne(filter, updateDoc); 
-                res.send(result); 
-                console.log(result);
+                else{
+                    res.send('Sorry, Only admin can make someone admin'); 
+                }
             }
             else{
-                res.send('Sorry, Only admin can make someone admin'); 
+                return res.status(403).send({message: 'Forbidden Access'}); 
             }
+            
         }); 
 
         // Checking a general user admin or not
@@ -169,8 +204,9 @@ async function run(){
 
         // For payment
         app.post('/create-payment-intent', async(req, res) =>{
-            const service = req.body;
-            const price = service.price;
+            const service = req?.body;
+            console.log('service ',service); 
+            const price = parseInt(service.price);
             const amount = price*100;
             const paymentIntent = await stripe.paymentIntents.create({
               amount : amount,
