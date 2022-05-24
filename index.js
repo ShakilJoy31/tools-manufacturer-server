@@ -154,7 +154,7 @@ async function run(){
             const email = req.params.email; 
             const query = {email: email}; 
             const result = await userCollection.findOne(query); 
-            if(result.act === 'admin'){
+            if(result?.act === 'admin'){
                 res.send(result); 
             }
         }); 
@@ -185,11 +185,9 @@ async function run(){
         // Updating the quantity
         app.put('/product/:id', async (req, res)=>{
             const id = req.params.id; 
-            console.log(id); 
             const updatedProduct = req.body; 
             const filter = {_id:ObjectId(id)}; 
             const option = {upsert: true}; 
-            console.log(updatedProduct); 
             const updateDoc = {
                 $set: {
                     availableQuantity : updatedProduct.updatedProduct 
@@ -198,6 +196,21 @@ async function run(){
             const result = await toolsCollection.updateOne(filter, updateDoc, option); 
             res.send(result); 
         }); 
+
+
+        // Get all the product for admin
+        app.get('/allProductForAdmin', async (req, res) => {
+            const result = await infoCollection.find().toArray(); 
+            res.send(result); 
+        }); 
+
+        // Delete a product by admin
+        app.delete('/deleteProduct/:id', async (req, res)=>{
+            const id = req.params.id; 
+            const filter = {id: ObjectId(id)}; 
+            const result = await infoCollection.deleteOne(filter); 
+            res.send(result); 
+        })
 
 
 
