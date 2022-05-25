@@ -51,9 +51,10 @@ async function run(){
 
         // getting all data from db; 
         app.get('/tools', async (req, res)=>{
-            const query = {}; 
             const result = await toolsCollection.find().toArray(); 
-            res.send(result); 
+            const data = result.reverse().slice(0,6); 
+            const tools = data.reverse(); 
+            res.send(tools); 
         }); 
 
 
@@ -133,12 +134,13 @@ async function run(){
         app.put('/adduser/:email', async (req, res)=>{
             const email = req.params.email; 
             const newUser = req.body; 
+            console.log(newUser); 
             const filter = {email: email}; 
             const option = {upsert: true}; 
             const updateDoc = {
                 $set: {
-                    name: newUser?.userName, 
-                    email: newUser?.userEmail
+                    email: newUser?.userEmail, 
+                    name: newUser?.userName
                 }
             }
             const result = await userCollection.updateOne(filter, updateDoc, option);
@@ -148,9 +150,18 @@ async function run(){
 
 
         // Get all the users for admin
-        app.get('/users', async (req, res)=>{
-            const result = await userCollection.find().toArray(); 
-            res.send(result); 
+        app.get('/users/:email', verifyJWT, async (req, res)=>{
+            const decodedEmail = req?.decoded.email; 
+            const email = req.params.email; 
+            console.log('email ',email);  
+            console.log('decoded ',decodedEmail);  
+            if(email === decodedEmail){
+                const result = await userCollection.find().toArray(); 
+                res.send(result); 
+            }
+            else{
+                res.status(401).send({message: 'Forbidded access'}); 
+            }
         })
 
 
@@ -160,19 +171,17 @@ async function run(){
             const decodedEmail = req.decoded.email; 
             const requester = req.body; 
             const requesterEmail = await userCollection.findOne({email:requester?.requester}); 
-            console.log('email',email); 
-            console.log('decoded email', decodedEmail); 
-            console.log('requester',requesterEmail); 
+            ; 
+             
             if(decodedEmail){
                 if(requesterEmail.act === 'admin'){
-                    console.log('got inter'); 
+                     
                     const filter = {email: email}; 
                     const updateDoc = {
                         $set: {act: 'admin'}
                     }
                     const result = await userCollection.updateOne(filter, updateDoc); 
                     res.send(result); 
-                    console.log(result);
                 }
                 else{
                     res.send('Sorry, Only admin can make someone admin'); 
@@ -205,9 +214,7 @@ async function run(){
         // For payment
         app.post('/create-payment-intent', async(req, res) =>{
             const service = req?.body;
-            console.log('service ',service); 
             const price = service.totalPrice;
-            console.log(price); 
             const amount = price*100;
             const paymentIntent = await stripe.paymentIntents.create({
               amount : amount,
@@ -257,14 +264,12 @@ async function run(){
         app.get('/allAvailableProduct/:email', verifyJWT, async (req, res)=>{
             const email = req.params.email;
             const decodedEmail = req.decoded.email;  
-            console.log('email ',email); 
-            console.log('decoded ',decodedEmail); 
             if(email === decodedEmail){
                 const result = await toolsCollection.find().toArray(); 
                 res.send(result); 
             }
             else{
-                return; 
+                return res.status(401).send({message: 'Un Authorized'}) 
             }
 
         }); 
@@ -290,10 +295,15 @@ async function run(){
             }
             const result = await infoCollection.updateOne(filter, updateDoc, option); 
             res.send(result); 
+        }); 
+
+
+        app.get('/getName/:email', (req, res)=>{
+            const email = req.params.email; 
+            const filter = {email: email}; 
+            const getName = userCollection.findOne(filter); 
+            res.send(getName); 
         })
-
-
-
 
     }
     finally{
