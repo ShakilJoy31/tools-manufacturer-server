@@ -197,12 +197,12 @@ async function run() {
         app.get('/adminUser/:email', verifyJWT, async (req, res) => {
             const decodedEmail = req.decoded.email;
             const requesterEmail = await userCollection.findOne({ email: decodedEmail });
-            ;
+            console.log(requesterEmail); 
             if (requesterEmail?.act === 'admin') {
                 res.status(200).send({message: 'This is admin email logged in'});
             }
             else {
-                res.status(401).send({ message: 'Forbidden access' });
+                return; 
             }
         });
 
@@ -317,14 +317,6 @@ async function run() {
             const result = await infoCollection.updateOne(filter, updateDoc, option);
             res.send(result);
         });
-
-
-        app.get('/getName/:email', async (req, res) => {
-            const email = req.params.email;
-            const filter = { email: email };
-            const getName = await userCollection.findOne(filter);
-            res.send(getName);
-        }); 
 
         app.put('/shippedProduct/:id', async (req, res)=>{
             const id = req.params.id;
